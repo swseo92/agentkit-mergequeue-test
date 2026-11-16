@@ -1,0 +1,31 @@
+name: line
+# 줄을 흉내 내는 시험용 워크플로: Actions 앱(15368)의 이름으로 check run `gate`를 달고 병합한다.
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        required: true
+      mode:
+        description: stamp | merge | both
+        default: both
+permissions:
+  checks: write
+  contents: write
+  pull-requests: write
+jobs:
+  line:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ inputs.pr }}
+      MODE: ${{ inputs.mode }}
+    steps:
+      - run: |
+          set -x
+          sha=$(gh api repos/$GITHUB_REPOSITORY/pulls/$PR -q .head.sha)
+          if [ "$MODE" != merge ]; then
+            gh api repos/$GITHUB_REPOSITORY/check-runs -f name=gate -f head_sha=$sha -f status=completed -f conclusion=success -q '{id,app:.app.slug,name}'
+          fi
+          if [ "$MODE" != stamp ]; then
+            gh api -X PUT repos/$GITHUB_REPOSITORY/pulls/$PR/merge -f merge_method=squash -f sha=$sha || echo "MERGE-REFUSED"
+          fi
